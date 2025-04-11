@@ -186,66 +186,57 @@ Provide a clear, well-structured response about the repository:`;
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <div className="flex items-center justify-between px-4 py-4 border-b">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between px-4 py-3 sm:py-4 border-b">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="mr-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push("/")}
-            >
-              <Home className="h-5 w-5" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-6 w-6" />
-            <h1 className="text-2xl font-bold truncate">GitHub Repository Chat</h1>
+            <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6" />
+            <h1 className="text-xl sm:text-2xl font-bold truncate">GitHub Repository Chat</h1>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 container mx-auto px-2 sm:px-4 overflow-hidden">
+      <div className="flex-1 w-full max-w-full px-2 sm:px-4 overflow-hidden">
         {!repoContent ? (
-          <div className="h-full flex items-center justify-center">
-            <Card className="p-8 w-full max-w-2xl bg-gradient-to-br from-background to-muted">
-              <div className="flex flex-col items-center text-center space-y-6">
-                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
-                  <Github className="h-8 w-8 text-primary" />
+          <div className="h-full flex items-center justify-center p-2 sm:p-4">
+            <Card className="p-4 sm:p-8 w-full max-w-2xl bg-gradient-to-br from-background to-muted">
+              <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6">
+                <div className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10">
+                  <Github className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
                 </div>
                 
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-bold tracking-tight">Analyze GitHub Repository</h2>
-                  <p className="text-muted-foreground max-w-md mx-auto">
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Analyze GitHub Repository</h2>
+                  <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
                     Enter a GitHub repository URL to start analyzing its codebase and chat with AI about it.
                   </p>
                 </div>
 
                 {urlError && (
-                  <Alert variant="destructive" className="text-left">
+                  <Alert variant="destructive" className="text-left w-full">
                     <AlertCircle className="h-4 w-4 mt-1" />
                     <AlertDescription>{urlError}</AlertDescription>
                   </Alert>
                 )}
 
                 {fetchError && (
-                  <Alert variant="destructive" className="text-left">
+                  <Alert variant="destructive" className="text-left w-full">
                     <AlertCircle className="h-4 w-4 mt-1" />
                     <AlertDescription>{fetchError}</AlertDescription>
                   </Alert>
                 )}
 
-                <div className="w-full max-w-xl space-y-4">
+                <div className="w-full space-y-3 sm:space-y-4">
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                      <GitBranch className="h-5 w-5" />
+                      <GitBranch className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
                     <Input
                       placeholder="https://github.com/username/repository"
@@ -254,18 +245,18 @@ Provide a clear, well-structured response about the repository:`;
                         setRepoUrl(e.target.value);
                         setUrlError(null);
                       }}
-                      className={`pl-10 h-12 text-lg ${urlError ? 'border-destructive' : ''}`}
+                      className={`pl-9 sm:pl-10 h-10 sm:h-12 text-base sm:text-lg ${urlError ? 'border-destructive' : ''}`}
                     />
                   </div>
                   
                   <Button 
                     onClick={analyzeRepo} 
                     disabled={analyzing}
-                    className="w-full h-12 text-lg font-medium"
+                    className="w-full h-10 sm:h-12 text-base sm:text-lg font-medium"
                   >
                     {analyzing ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                         Analyzing Repository...
                       </>
                     ) : (
@@ -274,14 +265,14 @@ Provide a clear, well-structured response about the repository:`;
                   </Button>
                 </div>
 
-                <div className="text-sm text-muted-foreground">
+                <div className="text-xs sm:text-sm text-muted-foreground">
                   Example: https://github.com/facebook/react
                 </div>
               </div>
             </Card>
           </div>
         ) : (
-          <div className="h-full flex flex-col space-y-4 py-4 mx-auto w-full max-w-4xl">
+          <div className="h-full flex flex-col space-y-3 sm:space-y-4 py-3 sm:py-4 w-full max-w-[100%] sm:mx-auto sm:max-w-4xl">
             {summarizing && (
               <div className="flex items-center justify-center space-x-2 text-muted-foreground p-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -289,11 +280,11 @@ Provide a clear, well-structured response about the repository:`;
               </div>
             )}
             
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col gap-3 w-full">
               {repoSummary && (
-                <Card className="p-4 bg-muted/30 flex-grow">
+                <Card className="p-3 sm:p-4 bg-muted/30 w-full">
                   <div className="flex items-start space-x-3">
-                    <Github className="h-5 w-5 text-primary mt-0.5" />
+                    <Github className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                     <div>
                       <h3 className="font-medium">Repository Summary</h3>
                       <p className="text-sm text-muted-foreground">{repoSummary}</p>
@@ -303,7 +294,7 @@ Provide a clear, well-structured response about the repository:`;
               )}
               
               {repoContent && (
-                <div className="flex-shrink-0">
+                <div className="flex justify-center sm:justify-start w-full">
                   <RepoTreeMap repoContent={repoContent} repoUrl={repoUrl} />
                 </div>
               )}
@@ -321,8 +312,8 @@ Provide a clear, well-structured response about the repository:`;
                     <div
                       className={`rounded-lg px-3 sm:px-4 py-2 ${
                         message.role === "assistant"
-                          ? "bg-muted prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 w-full sm:w-[90%] prose-pre:my-0"
-                          : "bg-primary text-primary-foreground w-full sm:w-[90%]"
+                          ? "bg-muted prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 w-full prose-pre:my-0"
+                          : "bg-primary text-primary-foreground w-full"
                       }`}
                       style={{ 
                         overflowWrap: 'break-word', 
@@ -346,7 +337,7 @@ Provide a clear, well-structured response about the repository:`;
               </div>
             </ScrollArea>
             
-            <div className="flex gap-2 px-0 sm:px-4">
+            <div className="flex gap-2">
               <Textarea
                 placeholder="Ask a question..."
                 value={input}
@@ -363,7 +354,7 @@ Provide a clear, well-structured response about the repository:`;
               <Button 
                 onClick={sendMessage} 
                 disabled={loading}
-                className="px-4 shrink-0"
+                className="px-3 sm:px-4 shrink-0"
               >
                 <Send className="h-4 w-4" />
               </Button>
