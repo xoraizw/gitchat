@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, ArrowLeft, Home, Github, GitBranch, GitFork } from "lucide-react";
+import { Loader2, Send, MessageSquare, ArrowLeft, Home, Github, GitBranch, GitFork, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { RepoTreeMap } from "@/components/RepoTreeMap";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ChatPage() {
   const router = useRouter();
@@ -23,10 +24,15 @@ export default function ChatPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
   const [input, setInput] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const analyzeRepo = async () => {
+    setUrlError(null);
+    setFetchError(null);
+    
     if (!isValidGitHubRepoUrl(repoUrl)) {
-      alert("Please enter a valid GitHub repository URL");
+      setUrlError("Please enter a valid GitHub repository URL (format: https://github.com/username/repository)");
       return;
     }
 
@@ -49,7 +55,7 @@ export default function ChatPage() {
       await generateRepoSummary(data.content);
             
     } catch (error) {
-      alert("Error analyzing repository: " + error);
+      setFetchError(`Error analyzing repository: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setAnalyzing(false);
     }
@@ -88,7 +94,7 @@ Keep your response to 2-3 lines only. Don't use markdown formatting. Just plain 
       setRepoSummary(summary);
       setMessages([{
         role: "assistant",
-        content: summary
+        content: "Repository analyzed successfully! You can now ask questions about the codebase."
       }]);
     } catch (error) {
       console.error("Error generating summary:", error);
@@ -222,6 +228,20 @@ Provide a clear, well-structured response about the repository:`;
                   </p>
                 </div>
 
+                {urlError && (
+                  <Alert variant="destructive" className="text-left">
+                    <AlertCircle className="h-4 w-4 mt-1" />
+                    <AlertDescription>{urlError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {fetchError && (
+                  <Alert variant="destructive" className="text-left">
+                    <AlertCircle className="h-4 w-4 mt-1" />
+                    <AlertDescription>{fetchError}</AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="w-full max-w-xl space-y-4">
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
@@ -230,8 +250,11 @@ Provide a clear, well-structured response about the repository:`;
                     <Input
                       placeholder="https://github.com/username/repository"
                       value={repoUrl}
-                      onChange={(e) => setRepoUrl(e.target.value)}
-                      className="pl-10 h-12 text-lg"
+                      onChange={(e) => {
+                        setRepoUrl(e.target.value);
+                        setUrlError(null);
+                      }}
+                      className={`pl-10 h-12 text-lg ${urlError ? 'border-destructive' : ''}`}
                     />
                   </div>
                   

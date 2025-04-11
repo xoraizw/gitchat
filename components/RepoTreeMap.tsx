@@ -114,9 +114,16 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
         
         {isDirectory && open && node.children && (
           <div>
-            {node.children.map((childNode, index) => (
-              <TreeNode key={`${childNode.path}-${index}`} node={childNode} level={level + 1} />
-            ))}
+            {node.children
+              .sort((a, b) => {
+                if (a.type !== b.type) {
+                  return a.type === 'directory' ? -1 : 1;
+                }
+                return a.name.localeCompare(b.name);
+              })
+              .map((childNode, index) => (
+                <TreeNode key={`${childNode.path}-${index}`} node={childNode} level={level + 1} />
+              ))}
           </div>
         )}
       </div>
