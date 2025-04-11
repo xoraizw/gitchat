@@ -5,31 +5,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, MessageSquare, ArrowLeft, Home, Github, GitBranch } from "lucide-react";
+import { Loader2, Send, MessageSquare, ArrowLeft, Home, Github, GitBranch, GitFork } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
+import { RepoTreeMap } from "@/components/RepoTreeMap";
 
 export default function ChatPage() {
   const router = useRouter();
   const [repoUrl, setRepoUrl] = useState("");
   const [repoContent, setRepoContent] = useState("");
+  const [repoSummary, setRepoSummary] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
   const [input, setInput] = useState("");
 
   const analyzeRepo = async () => {
-    if (!repoUrl.startsWith("https://github.com/")) {
+    if (!isValidGitHubRepoUrl(repoUrl)) {
       alert("Please enter a valid GitHub repository URL");
       return;
     }
 
+    const cleanUrl = cleanGitHubUrl(repoUrl);
+    setRepoUrl(cleanUrl);
     setAnalyzing(true);
+    
     try {
-      const response = await fetch(`https://web-production-d2772.up.railway.app/analyze?repo_url=${encodeURIComponent(repoUrl)}`);
+      const response = await fetch(`https://web-production-d2772.up.railway.app/analyze?repo_url=${encodeURIComponent(cleanUrl)}`);
       const data = await response.json();
       
       if (data.error) {
@@ -37,14 +43,61 @@ export default function ChatPage() {
       }
       
       setRepoContent(data.content);
-      setMessages([{
-        role: "assistant",
-        content: "Repository analyzed successfully! You can now ask questions about the codebase."
-      }]);
+      
+      // Generate repository summary
+      setSummarizing(true);
+      await generateRepoSummary(data.content);
+            
     } catch (error) {
       alert("Error analyzing repository: " + error);
     } finally {
       setAnalyzing(false);
+    }
+  };
+  
+  const isValidGitHubRepoUrl = (url: string): boolean => {
+    // Basic validation for GitHub repository URL
+    const githubRegex = /^https?:\/\/(www\.)?github\.com\/[\w-]+\/[\w.-]+\/?.*$/;
+    return githubRegex.test(url);
+  };
+  
+  const cleanGitHubUrl = (url: string): string => {
+    // Extract the base repository URL (owner/repo)
+    const match = url.match(/^https?:\/\/(www\.)?github\.com\/([\w-]+\/[\w.-]+)/);
+    if (match && match[2]) {
+      return `https://github.com/${match[2]}`;
+    }
+    return url;
+  };
+
+  const generateRepoSummary = async (content: string) => {
+    try {
+      const genAI = new GoogleGenerativeAI("AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8");
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const prompt = `You are analyzing a GitHub repository. Based on the following repository content, write a very concise summary (2-3 lines maximum) describing what this repository is about. Focus on the main purpose, technologies used, and any distinctive features:
+
+${content.substring(0, 10000)}
+
+Keep your response to 2-3 lines only. Don't use markdown formatting. Just plain text.`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const summary = response.text();
+
+      setRepoSummary(summary);
+      setMessages([{
+        role: "assistant",
+        content: summary
+      }]);
+    } catch (error) {
+      console.error("Error generating summary:", error);
+      setMessages([{
+        role: "assistant",
+        content: "Repository analyzed successfully! You can now ask questions about the codebase."
+      }]);
+    } finally {
+      setSummarizing(false);
     }
   };
 
@@ -138,6 +191,13 @@ Provide a clear, well-structured response about the repository:`;
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push("/")}
+            >
+              <Home className="h-5 w-5" />
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             <MessageSquare className="h-6 w-6" />
@@ -199,6 +259,33 @@ Provide a clear, well-structured response about the repository:`;
           </div>
         ) : (
           <div className="h-full flex flex-col space-y-4 py-4 mx-auto w-full max-w-4xl">
+            {summarizing && (
+              <div className="flex items-center justify-center space-x-2 text-muted-foreground p-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Generating repository summary...</span>
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              {repoSummary && (
+                <Card className="p-4 bg-muted/30 flex-grow">
+                  <div className="flex items-start space-x-3">
+                    <Github className="h-5 w-5 text-primary mt-0.5" />
+                    <div>
+                      <h3 className="font-medium">Repository Summary</h3>
+                      <p className="text-sm text-muted-foreground">{repoSummary}</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+              
+              {repoContent && (
+                <div className="flex-shrink-0">
+                  <RepoTreeMap repoContent={repoContent} repoUrl={repoUrl} />
+                </div>
+              )}
+            </div>
+            
             <ScrollArea className="flex-1 rounded-lg border">
               <div className="p-2 sm:p-4 space-y-4 max-w-full">
                 {messages.map((message, index) => (
