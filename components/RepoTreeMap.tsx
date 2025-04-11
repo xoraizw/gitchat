@@ -133,39 +133,39 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1 sm:gap-2 w-full sm:w-auto px-2 sm:px-3 py-1 text-sm h-auto">
-          <GitFork className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span className="whitespace-nowrap">View Repository Structure</span>
+        <Button variant="outline" size="sm" className="gap-1 sm:gap-2 w-full px-2 py-1 text-xs sm:text-sm h-auto">
+          <GitFork className="h-3 w-3 sm:h-4 sm:w-4" />
+          <span className="whitespace-nowrap">View Files</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[550px] max-h-[90vh] p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle>Repository Structure</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[550px] max-h-[90vh] p-3 sm:p-5">
+        <DialogHeader className="mb-1 sm:mb-3">
+          <DialogTitle className="text-sm sm:text-base">Repository Structure</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="mt-2 sm:mt-4 h-[50vh] sm:h-[60vh] border rounded-md p-2 sm:p-4">
+        <ScrollArea className="h-[45vh] sm:h-[60vh] border rounded-md p-1 sm:p-4">
           {loading && (
             <div className="flex justify-center items-center h-full">
-              <div className="flex flex-col items-center space-y-2">
-                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-t-2 border-b-2 border-primary"></div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Loading repository structure...</p>
+              <div className="flex flex-col items-center space-y-1 sm:space-y-2">
+                <div className="animate-spin rounded-full h-5 w-5 sm:h-8 sm:w-8 border-t-2 border-b-2 border-primary"></div>
+                <p className="text-xs sm:text-sm text-muted-foreground">Loading files...</p>
               </div>
             </div>
           )}
           
           {error && (
             <div className="flex justify-center items-center h-full text-destructive">
-              <p className="text-sm">{error}</p>
+              <p className="text-xs sm:text-sm">{error}</p>
             </div>
           )}
           
           {treeData && !loading && (
-            <div className="pr-2 sm:pr-4">
+            <div className="pr-1 sm:pr-4">
               <TreeNode node={treeData} />
             </div>
           )}
         </ScrollArea>
-        <div className="text-xs text-muted-foreground mt-2 text-center truncate">
-          Repository: {repoUrl.replace("https://github.com/", "")}
+        <div className="text-xs text-muted-foreground mt-1 sm:mt-2 text-center truncate">
+          {repoUrl.replace("https://github.com/", "")}
         </div>
       </DialogContent>
     </Dialog>

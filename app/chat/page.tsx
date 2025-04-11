@@ -184,21 +184,27 @@ Provide a clear, well-structured response about the repository:`;
     ),
   };
 
+  const getRepoName = (url: string): string => {
+    const match = url.match(/github\.com\/[\w-]+\/([\w.-]+)/);
+    return match && match[1] ? match[1] : "this repository";
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <div className="flex items-center justify-between px-4 py-3 sm:py-4 border-b">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2 sm:py-3 border-b flex-shrink-0">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.back()}
             aria-label="Go back"
+            className="h-8 w-8 sm:h-9 sm:w-9"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           <div className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6" />
-            <h1 className="text-xl sm:text-2xl font-bold truncate">GitHub Repository Chat</h1>
+            <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" />
+            <h1 className="text-lg sm:text-xl font-bold truncate">GitHub Chat</h1>
           </div>
         </div>
       </div>
@@ -272,36 +278,36 @@ Provide a clear, well-structured response about the repository:`;
             </Card>
           </div>
         ) : (
-          <div className="h-full flex flex-col space-y-3 sm:space-y-4 py-3 sm:py-4 w-full max-w-[100%] sm:mx-auto sm:max-w-4xl">
+          <div className="h-full flex flex-col space-y-2 py-2 sm:space-y-3 sm:py-3 w-full max-w-[100%] sm:mx-auto sm:max-w-4xl overflow-hidden">
             {summarizing && (
-              <div className="flex items-center justify-center space-x-2 text-muted-foreground p-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Generating repository summary...</span>
+              <div className="flex items-center justify-center space-x-2 text-muted-foreground p-1 flex-shrink-0">
+                <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                <span className="text-xs sm:text-sm">Generating summary...</span>
               </div>
             )}
             
-            <div className="flex flex-col gap-3 w-full">
+            <div className="flex flex-col gap-2 sm:gap-3 w-full flex-shrink-0">
               {repoSummary && (
-                <Card className="p-3 sm:p-4 bg-muted/30 w-full">
-                  <div className="flex items-start space-x-3">
-                    <Github className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <Card className="p-2 sm:p-3 bg-muted/30 w-full">
+                  <div className="flex items-start space-x-2 sm:space-x-3">
+                    <Github className="h-4 w-4 sm:h-5 sm:w-5 text-primary mt-0.5 flex-shrink-0" />
                     <div>
-                      <h3 className="font-medium">Repository Summary</h3>
-                      <p className="text-sm text-muted-foreground">{repoSummary}</p>
+                      <h3 className="font-medium text-sm sm:text-base">What is {getRepoName(repoUrl)} about?</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground">{repoSummary}</p>
                     </div>
                   </div>
                 </Card>
               )}
               
               {repoContent && (
-                <div className="flex justify-center sm:justify-start w-full">
+                <div className="flex justify-start w-full">
                   <RepoTreeMap repoContent={repoContent} repoUrl={repoUrl} />
                 </div>
               )}
             </div>
             
-            <ScrollArea className="flex-1 rounded-lg border">
-              <div className="p-2 sm:p-4 space-y-4 max-w-full">
+            <ScrollArea className="flex-1 rounded-lg border overflow-y-auto">
+              <div className="p-2 sm:p-3 space-y-3 sm:space-y-4 max-w-full">
                 {messages.map((message, index) => (
                   <div
                     key={index}
@@ -310,7 +316,7 @@ Provide a clear, well-structured response about the repository:`;
                     } w-full`}
                   >
                     <div
-                      className={`rounded-lg px-3 sm:px-4 py-2 ${
+                      className={`rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 ${
                         message.role === "assistant"
                           ? "bg-muted prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 w-full prose-pre:my-0"
                           : "bg-primary text-primary-foreground w-full"
@@ -329,15 +335,15 @@ Provide a clear, well-structured response about the repository:`;
                 ))}
                 {loading && (
                   <div className="flex justify-start">
-                    <div className="bg-muted rounded-lg px-4 py-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="bg-muted rounded-lg px-3 py-2">
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                     </div>
                   </div>
                 )}
               </div>
             </ScrollArea>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <Textarea
                 placeholder="Ask a question..."
                 value={input}
@@ -348,15 +354,15 @@ Provide a clear, well-structured response about the repository:`;
                     sendMessage();
                   }
                 }}
-                className="flex-1 min-h-[44px] max-h-[200px] resize-none"
+                className="flex-1 min-h-[38px] sm:min-h-[44px] max-h-[120px] sm:max-h-[200px] resize-none text-sm sm:text-base py-2"
                 rows={1}
               />
               <Button 
                 onClick={sendMessage} 
                 disabled={loading}
-                className="px-3 sm:px-4 shrink-0"
+                className="px-2 sm:px-3 shrink-0 h-[38px] sm:h-[44px]"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
             </div>
           </div>
