@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import { JetBrains_Mono, Inter } from 'next/font/google';
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const jetbrainsMono = JetBrains_Mono({ 
@@ -9,8 +10,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'GitHub Repository Chat',
-  description: 'Chat with any GitHub repository using AI',
+  title: 'GitChat - AI-Powered GitHub Code Assistant',
+  description: 'Analyze and chat with any GitHub repository using AI',
 };
 
 export default function RootLayout({
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
         {children}
+        <Analytics />
       </body>
     </html>
   );
