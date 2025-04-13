@@ -32,7 +32,7 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
   // Initialize Gemini model on component mount
   useEffect(() => {
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      const apiKey = "AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8";
       if (!apiKey) {
         console.error("Gemini API key not found!");
         return;
@@ -54,6 +54,24 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
       if (treeCache.has(cacheKey)) {
         setTreeData(treeCache.get(cacheKey) || null);
         return;
+      }
+      
+      // Try to recreate model if it's not initialized
+      if (!modelRef.current) {
+        try {
+          const genAI = new GoogleGenerativeAI("AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8");
+          modelRef.current = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          console.log("RepoTreeMap: Model reinitialized on dialog open");
+        } catch (error) {
+          console.error("RepoTreeMap: Failed to reinitialize model:", error);
+          // Try to generate tree without AI as fallback
+          const fallbackTree = generateQuickTree(repoContent) || generateFallbackTree();
+          if (fallbackTree) {
+            setTreeData(fallbackTree);
+            treeCache.set(repoUrl, fallbackTree);
+            return;
+          }
+        }
       }
       
       generateTreeData();

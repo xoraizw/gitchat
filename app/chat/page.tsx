@@ -48,7 +48,7 @@ export default function ChatPage() {
   // Initialize Gemini model on component mount
   useEffect(() => {
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      const apiKey = "AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8";
       if (!apiKey) {
         console.error("Gemini API key not found!");
         return;
@@ -56,6 +56,8 @@ export default function ChatPage() {
       
       const genAI = new GoogleGenerativeAI(apiKey);
       geminiModelRef.current = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      console.log("Gemini model initialized successfully");
     } catch (error) {
       console.error("Error initializing Gemini model:", error);
     }
@@ -154,7 +156,17 @@ export default function ChatPage() {
   const generateRepoSummary = async (content: string) => {
     try {
       if (!geminiModelRef.current) {
-        throw new Error("Gemini model not initialized");
+        // Try to reinitialize model
+        try {
+          const genAI = new GoogleGenerativeAI("AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8");
+          geminiModelRef.current = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          console.log("Reinitialized model for summary generation");
+        } catch (e) {
+          console.error("Failed to reinitialize model:", e);
+          // Use fallback summary
+          setRepoSummary("A GitHub repository with code and documentation. Explore the files using the view files button below.");
+          return;
+        }
       }
       
       const prompt = `You are analyzing a GitHub repository. Based on the following repository content, write a very concise summary (2-3 lines maximum) describing what this repository is about. Focus on the main purpose, technologies used, and any distinctive features:
@@ -170,6 +182,8 @@ Keep your response to 2-3 lines only. Don't use markdown formatting. Just plain 
       setRepoSummary(summary);
     } catch (error) {
       console.error("Error generating summary:", error);
+      // Use fallback summary if generation fails
+      setRepoSummary("A GitHub repository with code and documentation. Explore the files using the view files button below.");
     } finally {
       setSummarizing(false);
     }
@@ -177,9 +191,31 @@ Keep your response to 2-3 lines only. Don't use markdown formatting. Just plain 
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || !contextRef.current) return;
+    
+    // Try to reinitialize model if needed
     if (!geminiModelRef.current) {
-      setChatError("AI service not initialized. Please try refreshing the page.");
-      return;
+      try {
+        const genAI = new GoogleGenerativeAI("AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8");
+        geminiModelRef.current = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        console.log("Reinitialized model for chat");
+      } catch (e) {
+        console.error("Failed to reinitialize model for chat:", e);
+        setChatError("AI service could not be initialized. Using limited functionality instead.");
+        
+        // Still provide a basic response for better UX
+        const userMessage = input.trim();
+        setInput("");
+        
+        setMessages(prev => [
+          ...prev, 
+          { role: "user", content: userMessage },
+          { 
+            role: "assistant", 
+            content: "I'm currently operating with limited functionality due to an initialization error. You can still explore the repository structure using the 'View Files' button above." 
+          }
+        ]);
+        return;
+      }
     }
     
     const userMessage = input.trim();
