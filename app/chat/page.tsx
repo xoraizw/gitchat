@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -14,22 +14,57 @@ import { Textarea } from "@/components/ui/textarea";
 import { RepoTreeMap } from "@/components/RepoTreeMap";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Type definitions
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+type RAGCache = {
+  [key: string]: string; // question -> answer
+};
+
 export default function ChatPage() {
   const router = useRouter();
   const [repoUrl, setRepoUrl] = useState("");
   const [repoContent, setRepoContent] = useState("");
   const [repoSummary, setRepoSummary] = useState("");
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
   const [input, setInput] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+  
+  // Cache for RAG to avoid repeated API calls
+  const ragCache = useRef<RAGCache>({});
+  
+  // Refs for tracking context
+  const contextRef = useRef("");
+  const geminiModelRef = useRef<any>(null);
+
+  // Initialize Gemini model on component mount
+  useEffect(() => {
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) {
+        console.error("Gemini API key not found!");
+        return;
+      }
+      
+      const genAI = new GoogleGenerativeAI(apiKey);
+      geminiModelRef.current = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    } catch (error) {
+      console.error("Error initializing Gemini model:", error);
+    }
+  }, []);
 
   const analyzeRepo = async () => {
     setUrlError(null);
     setFetchError(null);
+    setChatError(null);
     
     if (!isValidGitHubRepoUrl(repoUrl)) {
       setUrlError("Please enter a valid GitHub repository URL (format: https://github.com/username/repository)");
@@ -41,21 +76,61 @@ export default function ChatPage() {
     setAnalyzing(true);
     
     try {
-      const response = await fetch(`https://web-production-d2772.up.railway.app/analyze?repo_url=${encodeURIComponent(cleanUrl)}`);
+      // Start repository analysis - optimized to load content immediately
+      const response = await fetch(`https://web-production-d2772.up.railway.app/analyze?repo_url=${encodeURIComponent(cleanUrl)}`, {
+        signal: AbortSignal.timeout(30000) // 30-second timeout
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
+        throw new Error(errorData.error || `Failed to fetch repository data: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       if (data.error) {
         throw new Error(data.error);
       }
       
-      setRepoContent(data.content);
+      if (!data.content || typeof data.content !== 'string') {
+        throw new Error("No valid content returned from repository analysis");
+      }
       
-      // Generate repository summary
+      // Store content and immediately allow chat to begin
+      setRepoContent(data.content);
+      contextRef.current = data.content;
+      
+      // Show initial message while summary is being generated
+      setMessages([{
+        role: "assistant",
+        content: "Repository analyzed successfully! You can now ask questions about the codebase."
+      }]);
+      
+      // Generate summary in the background
       setSummarizing(true);
-      await generateRepoSummary(data.content);
+      generateRepoSummary(data.content).catch(error => {
+        console.error("Error generating summary:", error);
+      });
             
     } catch (error) {
-      setFetchError(`Error analyzing repository: ${error instanceof Error ? error.message : String(error)}`);
+      let errorMessage = "Unknown error occurred";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Provide more detailed error messages for common issues
+        if (error.message.includes("timeout")) {
+          errorMessage = "Repository analysis timed out. This could be due to the repository size or server load. Please try again or try with a smaller repository.";
+        } else if (error.message.includes("network")) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        } else if (error.message.includes("404")) {
+          errorMessage = "Repository not found. Please check the URL and try again.";
+        } else if (error.message.includes("403")) {
+          errorMessage = "Access denied. The repository might be private or you may have exceeded API limits.";
+        }
+      }
+      
+      setFetchError(`Error analyzing repository: ${errorMessage}`);
     } finally {
       setAnalyzing(false);
     }
@@ -78,50 +153,57 @@ export default function ChatPage() {
 
   const generateRepoSummary = async (content: string) => {
     try {
-      const genAI = new GoogleGenerativeAI("AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8");
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+      if (!geminiModelRef.current) {
+        throw new Error("Gemini model not initialized");
+      }
+      
       const prompt = `You are analyzing a GitHub repository. Based on the following repository content, write a very concise summary (2-3 lines maximum) describing what this repository is about. Focus on the main purpose, technologies used, and any distinctive features:
 
 ${content.substring(0, 10000)}
 
 Keep your response to 2-3 lines only. Don't use markdown formatting. Just plain text.`;
 
-      const result = await model.generateContent(prompt);
+      const result = await geminiModelRef.current.generateContent(prompt);
       const response = await result.response;
       const summary = response.text();
 
       setRepoSummary(summary);
-      setMessages([{
-        role: "assistant",
-        content: "Repository analyzed successfully! You can now ask questions about the codebase."
-      }]);
     } catch (error) {
       console.error("Error generating summary:", error);
-      setMessages([{
-        role: "assistant",
-        content: "Repository analyzed successfully! You can now ask questions about the codebase."
-      }]);
     } finally {
       setSummarizing(false);
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || !repoContent) return;
-
+  const sendMessage = useCallback(async () => {
+    if (!input.trim() || !contextRef.current) return;
+    if (!geminiModelRef.current) {
+      setChatError("AI service not initialized. Please try refreshing the page.");
+      return;
+    }
+    
     const userMessage = input.trim();
     setInput("");
+    setChatError(null);
+    
+    // Add user message immediately for better UX
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
     setLoading(true);
 
     try {
-      const genAI = new GoogleGenerativeAI("AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8");
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      // Check cache first
+      const cacheKey = userMessage.toLowerCase();
+      if (ragCache.current[cacheKey]) {
+        // Use cached response
+        setMessages(prev => [...prev, { 
+          role: "assistant", 
+          content: ragCache.current[cacheKey] 
+        }]);
+      } else {
+        // Generate new response
+        const prompt = `You are an expert code analyst. You have access to the following repository content:
 
-      const prompt = `You are an expert code analyst. You have access to the following repository content:
-
-${repoContent}
+${contextRef.current}
 
 Please answer the following question about this repository:
 ${userMessage}
@@ -146,21 +228,38 @@ IMPORTANT FORMATTING INSTRUCTIONS:
 
 Provide a clear, well-structured response about the repository:`;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+        const result = await geminiModelRef.current.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
 
-      setMessages(prev => [...prev, { role: "assistant", content: text }]);
+        // Cache the response
+        ragCache.current[cacheKey] = text;
+        
+        // Update messages with response
+        setMessages(prev => [...prev, { role: "assistant", content: text }]);
+      }
     } catch (error) {
       console.error("Error generating response:", error);
-      setMessages(prev => [...prev, { 
-        role: "assistant", 
-        content: "I apologize, but I encountered an error while generating a response. Please try again." 
-      }]);
+      
+      let errorMessage = "An error occurred while generating a response";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // Specific error handling
+        if (errorMessage.includes("quota")) {
+          errorMessage = "API quota exceeded. Please try again later.";
+        } else if (errorMessage.includes("content safety")) {
+          errorMessage = "The request was flagged by content safety filters. Please rephrase your question.";
+        } else if (errorMessage.includes("timeout")) {
+          errorMessage = "The request timed out. The repository might be too large or complex.";
+        }
+      }
+      
+      setChatError(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [input]);
 
   const MarkdownComponents: Components = {
     pre: ({ children }) => (
@@ -220,7 +319,7 @@ Provide a clear, well-structured response about the repository:`;
                 
                 <div className="space-y-2">
                   <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Analyze GitHub Repository</h2>
-                  <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
+                  <p className="text-xs sm:text-base text-muted-foreground max-w-md mx-auto">
                     Enter a GitHub repository URL to start analyzing its codebase and chat with AI about it.
                   </p>
                 </div>
@@ -250,6 +349,11 @@ Provide a clear, well-structured response about the repository:`;
                       onChange={(e) => {
                         setRepoUrl(e.target.value);
                         setUrlError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && repoUrl.trim()) {
+                          analyzeRepo();
+                        }
                       }}
                       className={`pl-9 sm:pl-10 h-10 sm:h-12 text-base sm:text-lg ${urlError ? 'border-destructive' : ''}`}
                     />
@@ -306,6 +410,13 @@ Provide a clear, well-structured response about the repository:`;
               )}
             </div>
             
+            {chatError && (
+              <Alert variant="destructive" className="flex-shrink-0">
+                <AlertCircle className="h-4 w-4 mr-2" />
+                <AlertDescription>{chatError}</AlertDescription>
+              </Alert>
+            )}
+            
             <ScrollArea className="flex-1 rounded-lg border overflow-y-auto">
               <div className="p-2 sm:p-3 space-y-3 sm:space-y-4 max-w-full">
                 {messages.map((message, index) => (
@@ -356,6 +467,7 @@ Provide a clear, well-structured response about the repository:`;
                 }}
                 className="flex-1 min-h-[38px] sm:min-h-[44px] max-h-[120px] sm:max-h-[200px] resize-none text-sm sm:text-base py-2"
                 rows={1}
+                disabled={loading}
               />
               <Button 
                 onClick={sendMessage} 
