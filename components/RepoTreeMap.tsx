@@ -120,7 +120,7 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
       }
       
       Extract this information from the following repository content:
-      ${repoContent.substring(0, 15000)}
+      ${repoContent.substring(0, 5000)}
       
       Return ONLY the JSON object without any additional text or explanations.`;
 

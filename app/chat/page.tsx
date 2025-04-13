@@ -169,9 +169,12 @@ export default function ChatPage() {
         }
       }
       
+      // Limit to maximum 5000 chars (~1000 tokens) for summary generation
+      const truncatedContent = content.substring(0, 5000);
+      
       const prompt = `You are analyzing a GitHub repository. Based on the following repository content, write a very concise summary (2-3 lines maximum) describing what this repository is about. Focus on the main purpose, technologies used, and any distinctive features:
 
-${content.substring(0, 10000)}
+${truncatedContent}
 
 Keep your response to 2-3 lines only. Don't use markdown formatting. Just plain text.`;
 
@@ -237,9 +240,14 @@ Keep your response to 2-3 lines only. Don't use markdown formatting. Just plain 
         }]);
       } else {
         // Generate new response
+        // Limit content length to avoid token limit errors - 500k chars is ~100k tokens
+        const truncatedContent = contextRef.current.length > 500000 
+          ? contextRef.current.substring(0, 500000) + "\n... (content truncated due to length)"
+          : contextRef.current;
+
         const prompt = `You are an expert code analyst. You have access to the following repository content:
 
-${contextRef.current}
+${truncatedContent}
 
 Please answer the following question about this repository:
 ${userMessage}
@@ -282,7 +290,9 @@ Provide a clear, well-structured response about the repository:`;
       if (error instanceof Error) {
         errorMessage = error.message;
         // Specific error handling
-        if (errorMessage.includes("quota")) {
+        if (errorMessage.includes("token count") || errorMessage.includes("exceeds the maximum")) {
+          errorMessage = "The repository is too large to analyze completely. Try asking about specific parts or files.";
+        } else if (errorMessage.includes("quota")) {
           errorMessage = "API quota exceeded. Please try again later.";
         } else if (errorMessage.includes("content safety")) {
           errorMessage = "The request was flagged by content safety filters. Please rephrase your question.";
