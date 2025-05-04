@@ -19,25 +19,13 @@ interface RepoTreeMapProps {
   repoUrl: string;
 }
 
-// Cache for storing generated tree data
-const treeCache = new Map<string, TreeNode>();
-
 export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
   const [treeData, setTreeData] = useState<TreeNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const modelRef = useRef<any>(null);
-  const prevRepoUrlRef = useRef<string>(repoUrl);
-  
-  // Reset tree data when the repository URL changes
-  useEffect(() => {
-    if (repoUrl !== prevRepoUrlRef.current) {
-      setTreeData(null);
-      prevRepoUrlRef.current = repoUrl;
-      console.log("Repository URL changed, cleared tree data cache");
-    }
-  }, [repoUrl]);
+  const currentRepoRef = useRef<string>("");
   
   // Initialize Gemini model on component mount
   useEffect(() => {
@@ -53,69 +41,60 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
     } catch (error) {
       console.error("Error initializing Gemini model:", error);
     }
+    
+    // Reset everything when component mounts
+    setTreeData(null);
+    setError(null);
+    currentRepoRef.current = "";
+    
+    return () => {
+      // Clean up when component unmounts
+      setTreeData(null);
+      currentRepoRef.current = "";
+    };
   }, []);
-
-  // Only generate tree data when dialog is opened
+  
+  // Reset tree data when repo URL changes
   useEffect(() => {
-    if (isOpen && !treeData && repoContent) {
-      const cacheKey = `${repoUrl}:${Date.now()}`;
-      
-      // Check if data is already in cache with exact URL match
-      const existingEntry = Array.from(treeCache.entries()).find(([key]) => 
-        key.startsWith(repoUrl) && key !== cacheKey
-      );
-      
-      if (existingEntry) {
-        setTreeData(existingEntry[1]);
-        console.log("Using cached tree data for", repoUrl);
-        return;
-      }
-      
-      // Try to recreate model if it's not initialized
-      if (!modelRef.current) {
-        try {
-          const genAI = new GoogleGenerativeAI("AIzaSyD1kn-EMlQoPaB9e0SUpRZd7B9VnTDC_I8");
-          modelRef.current = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-          console.log("RepoTreeMap: Model reinitialized on dialog open");
-        } catch (error) {
-          console.error("RepoTreeMap: Failed to reinitialize model:", error);
-          // Try to generate tree without AI as fallback
-          const fallbackTree = generateQuickTree(repoContent) || generateFallbackTree();
-          if (fallbackTree) {
-            setTreeData(fallbackTree);
-            treeCache.set(cacheKey, fallbackTree);
-            return;
-          }
-        }
-      }
-      
-      generateTreeData(cacheKey);
+    if (repoUrl !== currentRepoRef.current) {
+      console.log(`Repo URL changed from "${currentRepoRef.current}" to "${repoUrl}"`);
+      setTreeData(null);
+      setError(null);
+      currentRepoRef.current = repoUrl;
     }
-  }, [isOpen, repoContent, repoUrl, treeData]);
+  }, [repoUrl]);
 
-  const generateTreeData = async (cacheKey: string) => {
+  // Generate tree data when dialog is opened
+  useEffect(() => {
+    if (isOpen && repoContent) {
+      console.log(`Dialog opened for repo: ${repoUrl}`);
+      // Always regenerate the tree data when dialog opens
+      setTreeData(null);
+      generateTreeData();
+    }
+  }, [isOpen, repoContent, repoUrl]);
+
+  const generateTreeData = async () => {
     if (!modelRef.current) {
       setError("AI service not initialized. Please try refreshing the page.");
       return;
     }
     
+    if (!repoContent) {
+      setError("No repository content available.");
+      return;
+    }
+    
     setLoading(true);
     setError(null);
+    console.log(`Generating tree data for: ${repoUrl}`);
     
     try {
-      // Clear any old cached data for this repo
-      for (const key of Array.from(treeCache.keys())) {
-        if (key.startsWith(repoUrl) && key !== cacheKey) {
-          treeCache.delete(key);
-          console.log("Removed old cached data for", repoUrl);
-        }
-      }
-      
       // First try to generate a simpler directory structure using regex
       const quickTree = generateQuickTree(repoContent);
       if (quickTree) {
+        console.log(`Successfully generated quick tree for ${repoUrl} with regex`);
         setTreeData(quickTree);
-        treeCache.set(cacheKey, quickTree);
         setLoading(false);
         return;
       }
@@ -125,6 +104,8 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
       
       IMPORTANT: Only include files and directories that are explicitly mentioned with the format "File: path/to/file" in the content.
       DO NOT include any files or directories that don't exist in the repository or are just mentioned in code comments or documentation.
+      
+      The repository URL is: ${repoUrl}
       
       The output should be a valid JSON object representing the directory tree structure with following format:
       {
@@ -171,16 +152,16 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
       
       try {
         const parsedData = JSON.parse(jsonString);
+        console.log(`Successfully generated AI tree for ${repoUrl}`);
         setTreeData(parsedData);
-        treeCache.set(cacheKey, parsedData);
       } catch (parseError) {
         console.error("Error parsing JSON:", parseError);
         
         // If JSON parsing fails, try to generate a simple tree structure
         const fallbackTree = generateFallbackTree();
         if (fallbackTree) {
+          console.log(`Using fallback tree for ${repoUrl}`);
           setTreeData(fallbackTree);
-          treeCache.set(cacheKey, fallbackTree);
         } else {
           setError("Failed to parse repository structure");
         }
@@ -191,8 +172,8 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
       // Try to generate a fallback tree
       const fallbackTree = generateFallbackTree();
       if (fallbackTree) {
+        console.log(`Using fallback tree after error for ${repoUrl}`);
         setTreeData(fallbackTree);
-        treeCache.set(cacheKey, fallbackTree);
       } else {
         let errorMessage = "Failed to generate repository structure";
         
@@ -225,6 +206,7 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
       }
       
       const files = Array.from(new Set(matches));
+      console.log(`Found ${files.length} files for ${repoUrl} using regex`);
       
       if (files.length === 0) {
         console.log("No files found in content using regex pattern");
@@ -279,7 +261,6 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
         }
       }
       
-      console.log(`Generated file structure with ${files.length} files for ${repoUrl}`);
       return root;
     } catch (e) {
       console.error("Error in quick tree generation:", e);
@@ -361,12 +342,18 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
     }
   };
 
-  // Function to clear tree data and reset view
+  // Handle dialog open/close
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
-    if (open && prevRepoUrlRef.current !== repoUrl) {
+    if (open) {
+      // Force refresh when dialog opens
       setTreeData(null);
-      prevRepoUrlRef.current = repoUrl;
+      setLoading(true);
+      
+      // Use setTimeout to ensure state update has completed
+      setTimeout(() => {
+        generateTreeData();
+      }, 0);
     }
   };
 
@@ -410,7 +397,7 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
                 return a.name.localeCompare(b.name);
               })
               .map((childNode, index) => (
-                <MemoizedTreeNode key={`${childNode.path}-${index}`} node={childNode} level={level + 1} />
+                <MemoizedTreeNode key={`${childNode.path}-${index}-${repoUrl}`} node={childNode} level={level + 1} />
               ))}
           </div>
         )}
@@ -423,21 +410,32 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1 sm:gap-2 w-full px-2 py-1 text-xs sm:text-sm h-auto">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-1 sm:gap-2 w-full px-2 py-1 text-xs sm:text-sm h-auto"
+          onClick={() => {
+            // Reset tree data when button is clicked
+            setTreeData(null);
+            setError(null);
+          }}
+        >
           <GitFork className="h-3 w-3 sm:h-4 sm:w-4" />
           <span className="whitespace-nowrap">View Files</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[550px] max-h-[90vh] p-3 sm:p-5">
         <DialogHeader className="mb-1 sm:mb-3">
-          <DialogTitle className="text-sm sm:text-base">Repository Structure - {repoUrl.replace("https://github.com/", "")}</DialogTitle>
+          <DialogTitle className="text-sm sm:text-base">
+            Repository Structure - {repoUrl.replace("https://github.com/", "")}
+          </DialogTitle>
         </DialogHeader>
         <ScrollArea className="h-[45vh] sm:h-[60vh] border rounded-md p-1 sm:p-4">
           {loading && (
             <div className="flex justify-center items-center h-full">
               <div className="flex flex-col items-center space-y-1 sm:space-y-2">
                 <div className="animate-spin rounded-full h-5 w-5 sm:h-8 sm:w-8 border-t-2 border-b-2 border-primary"></div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Loading files...</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Loading files for {repoUrl.split('/').pop()}...</p>
               </div>
             </div>
           )}
@@ -451,12 +449,15 @@ export function RepoTreeMap({ repoContent, repoUrl }: RepoTreeMapProps) {
           
           {treeData && !loading && (
             <div className="pr-1 sm:pr-4">
+              <div className="mb-2 text-xs text-muted-foreground">
+                Showing files for: <span className="font-semibold">{repoUrl.replace("https://github.com/", "")}</span>
+              </div>
               <MemoizedTreeNode node={treeData} />
             </div>
           )}
         </ScrollArea>
         <div className="text-xs text-muted-foreground mt-1 sm:mt-2 text-center truncate">
-          {repoUrl.replace("https://github.com/", "")}
+          Repository URL: {repoUrl}
         </div>
       </DialogContent>
     </Dialog>
