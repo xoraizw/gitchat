@@ -11,7 +11,8 @@ import type { Components } from "react-markdown";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
-import { RepoTreeMap } from "@/components/RepoTreeMap";
+import { GoToRepo } from "@/components/GoToRepo";
+import { GitChatLogo } from "@/components/GitChatLogo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Type definitions
@@ -519,11 +520,11 @@ Provide a clear, well-structured response about the repository:`;
           >
             <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" />
-            <h1 className="text-lg sm:text-xl font-bold truncate">GitHub Chat</h1>
-          </div>
+          <GitChatLogo size="sm" />
         </div>
+        {repoContent && (
+          <GoToRepo repoUrl={repoUrl} />
+        )}
       </div>
 
       <div className="flex-1 w-full max-w-full px-4 sm:px-6 overflow-hidden">
@@ -531,12 +532,10 @@ Provide a clear, well-structured response about the repository:`;
           <div className="h-full flex items-center justify-center p-2 sm:p-4">
             <Card className="p-4 sm:p-8 w-full max-w-2xl bg-gradient-to-br from-background to-muted">
               <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6">
-                <div className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10">
-                  <Github className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
-                </div>
+                <GitChatLogo size="md" />
                 
                 <div className="space-y-2">
-                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Analyze GitHub Repository</h2>
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Analyze Repository</h2>
                   <p className="text-xs sm:text-base text-muted-foreground max-w-md mx-auto">
                     Enter a GitHub repository URL to start analyzing its codebase and chat with AI about it.
                   </p>
@@ -635,12 +634,6 @@ Provide a clear, well-structured response about the repository:`;
                     </div>
                   </div>
                 </Card>
-              )}
-              
-              {repoContent && (
-                <div className="flex justify-start w-full">
-                  <RepoTreeMap repoContent={repoContent} repoUrl={repoUrl} />
-                </div>
               )}
             </div>
             

@@ -1,14 +1,20 @@
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Github, Code2, Brain, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { GitChatLogo } from "@/components/GitChatLogo";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-background to-muted overflow-hidden">
       <div className="container mx-auto px-4 py-16">
-        <div className="flex flex-col items-center justify-center text-center space-y-8">
+        <div className="flex flex-col items-center justify-center text-center space-y-5">
+          {/* GitChat Logo */}
+          <div className="mb-6">
+            <GitChatLogo size="lg" />
+          </div>
+          
           {/* Animated Icons */}
-          <div className="relative">
+          <div className="relative mt-2">
             <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur-3xl" />
             <div className="relative flex items-center space-x-4">
               <Github className="h-12 w-12 animate-float-1" />
