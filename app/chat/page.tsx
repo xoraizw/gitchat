@@ -152,7 +152,7 @@ export default function ChatPage() {
     
     try {
       // Start repository analysis - optimized to load content immediately
-      const response = await fetch(`https://web-production-d2772.up.railway.app/analyze?repo_url=${encodeURIComponent(cleanUrl)}`, {
+      const response = await fetch(`https://xoraiz1.pythonanywhere.com/analyze?repo_url=${encodeURIComponent(cleanUrl)}`, {
         signal: AbortSignal.timeout(30000) // 30-second timeout
       });
       
